@@ -6,6 +6,7 @@ import {
   getConfig,
   getRelays,
 } from "../services/hubDataService";
+import { HubApiNetworkError, HubApiTimeoutError } from "../services/hubApi/errors";
 
 jest.mock("../services/hubApi/backend", () => {
   throw new Error("hubDataStore should not import the backend selector directly");
@@ -164,6 +165,87 @@ describe("hubDataStore", () => {
     expect(useHubDataStore.getState()).toMatchObject({
       loading: false,
       error: "No se pudieron cargar los datos del hub",
+    });
+  });
+
+  it("propagates the HubApiError message to error state", async () => {
+    (getConfig as jest.Mock).mockRejectedValue(new HubApiTimeoutError());
+    (getActual as jest.Mock).mockResolvedValue({});
+    (getRelays as jest.Mock).mockResolvedValue([]);
+    (getAlarms as jest.Mock).mockResolvedValue([]);
+
+    await useHubDataStore.getState().loadHubData("192.168.1.50");
+
+    expect(useHubDataStore.getState().error).toBe(
+      "El hub tardó demasiado en responder"
+    );
+    expect(useHubDataStore.getState().loading).toBe(false);
+  });
+
+  describe("refreshActual", () => {
+    it("updates only `actual` without touching loading or other slices", async () => {
+      const previous = {
+        a_temperature: "20.0",
+        a_humidity: "50",
+        a_co2: "400",
+        a_pressure: "1010",
+        wifi_status: "connected" as const,
+        errors: {
+          temperature: [],
+          humidity: [],
+          sensors: [],
+          wifi: [],
+          rotation: [],
+        },
+      };
+      useHubDataStore.setState({
+        actual: previous,
+        config: { existing: true } as never,
+        loading: false,
+      });
+
+      const next = { ...previous, a_temperature: "22.5" };
+      (getActual as jest.Mock).mockResolvedValue(next);
+
+      await useHubDataStore.getState().refreshActual("192.168.1.50");
+
+      expect(useHubDataStore.getState().actual).toEqual(next);
+      expect(useHubDataStore.getState().loading).toBe(false);
+      expect(useHubDataStore.getState().config).toEqual({ existing: true });
+    });
+
+    it("swallows transient errors so polling stays silent", async () => {
+      const before = useHubDataStore.getState().actual;
+      (getActual as jest.Mock).mockRejectedValue(new HubApiNetworkError());
+
+      await expect(
+        useHubDataStore.getState().refreshActual("192.168.1.50")
+      ).resolves.toBeUndefined();
+
+      expect(useHubDataStore.getState().actual).toBe(before);
+      expect(useHubDataStore.getState().error).toBeNull();
+    });
+  });
+
+  it("clearData resets per-hub slices but keeps loading flag false", () => {
+    useHubDataStore.setState({
+      config: { x: 1 } as never,
+      actual: { y: 2 } as never,
+      relays: [{}] as never,
+      alarms: [{}] as never,
+      devices: [{}] as never,
+      error: "previous error",
+    });
+
+    useHubDataStore.getState().clearData();
+
+    expect(useHubDataStore.getState()).toMatchObject({
+      config: null,
+      actual: null,
+      relays: [],
+      alarms: [],
+      devices: [],
+      error: null,
     });
   });
 });

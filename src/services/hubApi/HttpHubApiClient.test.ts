@@ -2,6 +2,7 @@ import { mockConfig } from "../../mocks/config";
 import {
   HubApiInvalidResponseError,
   HubApiNetworkError,
+  HubApiTimeoutError,
   HubApiToggleError,
 } from "./errors";
 import { createHttpHubApiClient } from "./HttpHubApiClient";
@@ -122,6 +123,44 @@ describe("createHttpHubApiClient", () => {
     await expect(client.getRelays("192.168.1.50")).rejects.toBeInstanceOf(
       HubApiNetworkError
     );
+  });
+
+  it("raises a timeout error when fetch is aborted", async () => {
+    const fetchMock = jest.fn().mockImplementation(() => {
+      const err = new Error("Aborted");
+      err.name = "AbortError";
+      return Promise.reject(err);
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const client = createHttpHubApiClient();
+
+    await expect(client.getActual("192.168.1.50")).rejects.toBeInstanceOf(
+      HubApiTimeoutError
+    );
+  });
+
+  it("retries idempotent GETs on transient failures and returns the second response", async () => {
+    const json = jest.fn().mockResolvedValue(mockConfig);
+    const okResponse = {
+      ok: true,
+      status: 200,
+      headers: {
+        get: jest.fn().mockReturnValue("application/json"),
+      },
+      json,
+      text: jest.fn(),
+    };
+    const fetchMock = jest
+      .fn()
+      .mockRejectedValueOnce(new Error("ECONNRESET"))
+      .mockResolvedValueOnce(okResponse);
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const client = createHttpHubApiClient();
+
+    await expect(client.getConfig("192.168.1.50")).resolves.toEqual(mockConfig);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("raises an invalid-response error when body parsing fails", async () => {

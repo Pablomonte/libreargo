@@ -1,4 +1,12 @@
-import { getActual, getConfig, getRelays, toggleRelay } from "./hubDataService";
+import {
+  getActual,
+  getAlarms,
+  getConfig,
+  getRecommendations,
+  getRelays,
+  pingHub,
+  toggleRelay,
+} from "./hubDataService";
 import { getHubApiClient } from "./hubApi/backend";
 
 jest.mock("./hubApi/backend", () => ({
@@ -59,5 +67,34 @@ describe("hubDataService", () => {
 
     expect(getHubApiClient).toHaveBeenCalledTimes(1);
     expect(toggleRelayMock).toHaveBeenCalledWith("192.168.1.50", 1, 2);
+  });
+
+  it("getAlarms returns empty array (no real endpoint yet)", async () => {
+    await expect(getAlarms("192.168.1.50")).resolves.toEqual([]);
+    expect(getHubApiClient).not.toHaveBeenCalled();
+  });
+
+  it("getRecommendations returns empty array (no real endpoint yet)", async () => {
+    await expect(getRecommendations()).resolves.toEqual([]);
+    expect(getHubApiClient).not.toHaveBeenCalled();
+  });
+
+  it("pingHub returns true when getConfig succeeds", async () => {
+    const getConfigMock = jest.fn().mockResolvedValue({ hash: "AABBCCDD" });
+    (getHubApiClient as jest.Mock).mockReturnValue({
+      getConfig: getConfigMock,
+    });
+
+    await expect(pingHub("192.168.1.50")).resolves.toBe(true);
+    expect(getConfigMock).toHaveBeenCalledWith("192.168.1.50");
+  });
+
+  it("pingHub returns false when getConfig throws", async () => {
+    const getConfigMock = jest.fn().mockRejectedValue(new Error("offline"));
+    (getHubApiClient as jest.Mock).mockReturnValue({
+      getConfig: getConfigMock,
+    });
+
+    await expect(pingHub("192.168.1.50")).resolves.toBe(false);
   });
 });
