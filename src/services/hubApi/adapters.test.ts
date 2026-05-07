@@ -71,6 +71,42 @@ describe("hubApi adapters", () => {
     expect(mapRelayListResponse(mockRelays)).toEqual(mockRelays);
   });
 
+  it("accepts the firmware-style minimal relay shape and fills sane defaults", () => {
+    const payload = [
+      { address: 1, alias: "Relay 01", r0: 0, r1: 1 },
+      { address: 2, alias: "Nuevo Relé GPIO", r0: 1, r1: 0 },
+    ];
+
+    const result = mapRelayListResponse(payload);
+
+    expect(result).toHaveLength(2);
+    expect(result[0]).toMatchObject({
+      address: 1,
+      alias: "Relay 01",
+      active: true,
+      state: [false, true],
+      input_state: [false, false],
+    });
+    // type defaults to a non-empty string so the UI can group the device
+    expect(typeof result[0].type).toBe("string");
+    expect(result[0].type.length).toBeGreaterThan(0);
+
+    expect(result[1].state).toEqual([true, false]);
+  });
+
+  it("treats truthy/numeric r0/r1 as boolean state", () => {
+    const result = mapRelayListResponse([
+      { address: 3, alias: "x", r0: 1, r1: 0 },
+    ]);
+    expect(result[0].state).toEqual([true, false]);
+  });
+
+  it("rejects relay items missing both address and alias", () => {
+    expect(() => mapRelayListResponse([{ r0: 0, r1: 0 }])).toThrow(
+      HubApiInvalidResponseError
+    );
+  });
+
   it("maps toggle responses to strings", () => {
     expect(mapToggleRelayResponse("OK")).toBe("OK");
   });

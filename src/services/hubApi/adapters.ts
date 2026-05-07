@@ -201,6 +201,42 @@ export function mapRelayListResponse(payload: unknown): readonly RelayState[] {
     }
 
     const data = relay as Record<string, unknown>;
+
+    // Firmware ships a minimal shape ({address, alias, r0, r1}) without the
+    // type/active/state/input_state fields the UI expects. Accept it and fill
+    // sane defaults derived from r0/r1, falling through to the strict
+    // legacy shape when the payload provides them.
+    const hasMinimalShape =
+      typeof data.address === "number" &&
+      typeof data.alias === "string" &&
+      ("r0" in data || "r1" in data);
+
+    if (hasMinimalShape && typeof data.state === "undefined") {
+      const state: readonly [boolean, boolean] = [
+        toBoolean(data.r0),
+        toBoolean(data.r1),
+      ];
+      const inputState: readonly [boolean, boolean] = isBooleanTuple(
+        data.input_state
+      )
+        ? data.input_state
+        : [false, false];
+
+      return {
+        type: typeof data.type === "string" ? data.type : "relay",
+        address: data.address as number,
+        alias: data.alias as string,
+        active: typeof data.active === "boolean" ? data.active : true,
+        state,
+        input_state: inputState,
+        zones: isOptionalStringArray(data.zones)
+          ? data.zones
+            ? [...data.zones]
+            : undefined
+          : undefined,
+      };
+    }
+
     if (
       typeof data.type !== "string" ||
       typeof data.address !== "number" ||
@@ -270,6 +306,16 @@ function isOptionalStringArray(
     value === undefined ||
     (Array.isArray(value) && value.every((item) => typeof item === "string"))
   );
+}
+
+function toBoolean(value: unknown): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+  if (typeof value === "string") {
+    const v = value.trim().toLowerCase();
+    return v === "true" || v === "1" || v === "on";
+  }
+  return false;
 }
 
 function isBooleanTuple(
