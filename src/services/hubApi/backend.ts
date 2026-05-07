@@ -11,7 +11,7 @@ export function getHubDataBackend(): HubDataBackend {
     normalizeBackendEnv(process.env.EXPO_PUBLIC_HUB_DATA_BACKEND) ??
     normalizeBackendEnv(process.env.HUB_DATA_BACKEND);
   if (configuredBackend === undefined || configuredBackend.trim() === "") {
-    return "mock";
+    return "http";
   }
   if (!isHubDataBackend(configuredBackend)) {
     throw new Error(`Unsupported hub data backend: ${configuredBackend}`);

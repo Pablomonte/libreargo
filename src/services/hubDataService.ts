@@ -1,7 +1,3 @@
-import {
-  mockAlarms,
-  mockRecommendations,
-} from "../mocks";
 import type {
   HubConfig,
   SensorData,
@@ -14,15 +10,6 @@ export {
   InvalidHubConfigError,
   validateHubConfig,
 } from "./hubApi/validation";
-
-/**
- * Servicio de datos del hub.
- * Parte del acceso ya delega al backend seleccionado; alarms,
- * recommendations, ping y validación siguen usando el comportamiento local.
- */
-
-const simulateDelay = (ms = 300) =>
-  new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 export async function getConfig(_hubIp: string): Promise<HubConfig> {
   return getHubApiClient().getConfig(_hubIp);
@@ -39,8 +26,7 @@ export async function getRelays(
 }
 
 export async function getAlarms(_hubIp: string): Promise<readonly Alarm[]> {
-  await simulateDelay();
-  return mockAlarms;
+  return [];
 }
 
 export async function toggleRelay(
@@ -52,15 +38,14 @@ export async function toggleRelay(
 }
 
 export async function getRecommendations(): Promise<readonly Recommendation[]> {
-  await simulateDelay();
-  return [...mockRecommendations]
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 3);
+  return [];
 }
 
-/** Ping al hub para verificar conectividad */
 export async function pingHub(_hubIp: string): Promise<boolean> {
-  await simulateDelay(200);
-  // Mock: siempre conectado para el primer hub
-  return true;
+  try {
+    await getHubApiClient().getConfig(_hubIp);
+    return true;
+  } catch {
+    return false;
+  }
 }

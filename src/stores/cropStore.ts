@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import type { Crop } from "../types";
-import { mockCrops } from "../mocks";
 
 interface CropState {
   readonly crops: readonly Crop[];
@@ -27,7 +26,7 @@ export function createCrop(data: Omit<Crop, "id" | "harvestDate">): Crop {
 }
 
 export const useCropStore = create<CropState & CropActions>((set) => ({
-  crops: mockCrops,
+  crops: [],
 
   addCrop: (crop) =>
     set((state) => ({ crops: [...state.crops, crop] })),

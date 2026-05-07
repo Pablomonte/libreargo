@@ -64,7 +64,7 @@ describe("createMockHubApiClient", () => {
     jest.dontMock("./MockHubApiClient");
   });
 
-  it("falls back to mock backend when no environment value is configured", () => {
+  it("falls back to http backend when no environment value is configured", () => {
     const originalExpoBackend = process.env.EXPO_PUBLIC_HUB_DATA_BACKEND;
     const originalBackend = process.env.HUB_DATA_BACKEND;
 
@@ -76,7 +76,7 @@ describe("createMockHubApiClient", () => {
 
       backend.resetHubApiClientForTests();
 
-      expect(backend.getHubDataBackend()).toBe("mock");
+      expect(backend.getHubDataBackend()).toBe("http");
     });
 
     process.env.EXPO_PUBLIC_HUB_DATA_BACKEND = originalExpoBackend;

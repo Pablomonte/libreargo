@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import type { Hub, ConnectionMode } from "../types";
-import { mockHubs } from "../mocks";
 
 interface HubState {
   readonly hubs: readonly Hub[];
@@ -17,7 +16,7 @@ interface HubActions {
 }
 
 export const useHubStore = create<HubState & HubActions>((set) => ({
-  hubs: mockHubs,
+  hubs: [],
   connectionMode: "directo",
   selectedHubHash: null,
 

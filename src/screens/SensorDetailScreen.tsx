@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { View, Text, FlatList, StyleSheet } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { COLORS } from "../constants";
+import type { SensorReading } from "../types";
 import {
   ACTUAL_KEY_MAP,
   LABEL_MAP,
@@ -10,7 +11,6 @@ import {
 } from "../features/sensors/sensorMeasurementCatalog";
 import { getMeasurementRange } from "../features/sensors/getMeasurementRange";
 import { useHubDataStore } from "../stores/hubDataStore";
-import { mockReadings } from "../mocks";
 import type { RootStackParamList } from "../navigation/types";
 import { Card, IconBadge, ZonaPill } from "../components/ui";
 import { getDeviceIcon } from "../components/icons/getDeviceIcon";
@@ -123,9 +123,14 @@ export function SensorDetailScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={mockReadings.slice(0, 15)}
+      <FlatList<SensorReading>
+        data={[]}
         keyExtractor={(_, index) => String(index)}
+        ListEmptyComponent={
+          <Text style={styles.emptyHistory}>
+            Sin histórico disponible.
+          </Text>
+        }
         ListHeaderComponent={
           <View style={styles.headerWrap}>
             <View
@@ -422,5 +427,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
     color: COLORS.text,
+  },
+  emptyHistory: {
+    marginHorizontal: 16,
+    paddingVertical: 24,
+    textAlign: "center",
+    color: COLORS.textSecondary,
+    fontSize: 14,
   },
 });

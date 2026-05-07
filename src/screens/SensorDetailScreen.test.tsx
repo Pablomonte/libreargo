@@ -6,25 +6,6 @@ import { useHubDataStore } from "../stores/hubDataStore";
 import type { HubConfig, SensorData } from "../types";
 import type { RootStackParamList } from "../navigation/types";
 
-jest.mock("../mocks", () => ({
-  mockReadings: [
-    {
-      timestamp: "2026-04-17T13:00:00.000Z",
-      temperature: 25.2,
-      humidity: 70,
-      co2: 500,
-      pressure: 1013,
-    },
-    {
-      timestamp: "2026-04-17T12:59:30.000Z",
-      temperature: 25.1,
-      humidity: 62,
-      co2: 495,
-      pressure: 1012,
-    },
-  ],
-}));
-
 type Props = NativeStackScreenProps<RootStackParamList, "SensorDetail">;
 
 function makeProps(sensorId: string): Props {
@@ -155,35 +136,6 @@ describe("SensorDetailScreen (icon-first redesign)", () => {
     expect(screen.getByText("65.0%")).toBeTruthy();
   });
 
-  it("highlights history rows that fall out of range", () => {
-    useHubDataStore.setState({
-      config,
-      actual,
-      relays: [],
-      alarms: [],
-      devices: [
-        {
-          id: "sensor-bme280-0",
-          type: "sensor",
-          name: "Sensor BME280",
-          subtype: "bme280",
-          sensorType: "humidity",
-          zones: ["Zona A"],
-        },
-      ],
-      loading: false,
-      error: null,
-      loadHubData: jest.fn(),
-      clearData: jest.fn(),
-    });
-
-    render(<SensorDetailScreen {...makeProps("sensor-bme280-0")} />);
-
-    expect(screen.getByTestId("history-row-out-of-range-0")).toHaveStyle({
-      backgroundColor: "#FBDCDC",
-    });
-  });
-
   it("renders a supported sensor without a configured range without crashing", () => {
     useHubDataStore.setState({
       config,
@@ -210,6 +162,33 @@ describe("SensorDetailScreen (icon-first redesign)", () => {
 
     expect(screen.getByText("CO2")).toBeTruthy();
     expect(screen.queryByTestId("sensor-range-marker")).toBeNull();
-    expect(screen.getByTestId("history-row-0")).toBeTruthy();
+  });
+
+  it("shows an empty history placeholder for a supported sensor", () => {
+    useHubDataStore.setState({
+      config,
+      actual,
+      relays: [],
+      alarms: [],
+      devices: [
+        {
+          id: "sensor-bme280-0",
+          type: "sensor",
+          name: "Sensor BME280",
+          subtype: "bme280",
+          sensorType: "humidity",
+          zones: ["Zona A"],
+        },
+      ],
+      loading: false,
+      error: null,
+      loadHubData: jest.fn(),
+      clearData: jest.fn(),
+    });
+
+    render(<SensorDetailScreen {...makeProps("sensor-bme280-0")} />);
+
+    expect(screen.getByText("Sin histórico disponible.")).toBeTruthy();
+    expect(screen.queryByTestId("history-row-0")).toBeNull();
   });
 });
