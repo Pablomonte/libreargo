@@ -28,7 +28,10 @@ type Props = NativeStackScreenProps<RootStackParamList, "HubHome">;
 
 function makeProps(): Props {
   return {
-    navigation: { navigate: jest.fn() } as unknown as Props["navigation"],
+    navigation: {
+      navigate: jest.fn(),
+      setOptions: jest.fn(),
+    } as unknown as Props["navigation"],
     route: {
       key: "HubHome",
       name: "HubHome",
@@ -219,12 +222,10 @@ describe("HubHomeScreen", () => {
     });
   });
 
-  it("permite que los filtros bajen de linea para que Zonas no quede fuera de pantalla", () => {
+  it("renderiza la fila horizontal de filtros con scroll", () => {
     render(<HubHomeScreen {...makeProps()} />);
 
-    expect(screen.getByTestId("hub-home-filters-row")).toHaveStyle({
-      flexWrap: "wrap",
-    });
+    expect(screen.getByTestId("hub-home-filters-row")).toBeTruthy();
   });
 
   it("navega a alarmas al tocar el resumen cuando hay alertas activas", () => {

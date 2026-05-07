@@ -12,6 +12,13 @@ export class HubApiNetworkError extends HubApiError {
   }
 }
 
+export class HubApiTimeoutError extends HubApiNetworkError {
+  constructor(message = "El hub tardó demasiado en responder") {
+    super(message);
+    this.name = "HubApiTimeoutError";
+  }
+}
+
 export class HubApiInvalidResponseError extends HubApiError {
   constructor(message = "El hub respondió con datos inválidos") {
     super(message);

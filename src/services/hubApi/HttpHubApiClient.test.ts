@@ -30,9 +30,10 @@ describe("createHttpHubApiClient", () => {
     const client = createHttpHubApiClient();
     const result = await client.getConfig("192.168.1.50");
 
-    expect(fetchMock).toHaveBeenCalledWith("http://192.168.1.50/config", {
-      method: "GET",
-    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://192.168.1.50/config",
+      expect.objectContaining({ method: "GET" })
+    );
     expect(json).toHaveBeenCalledTimes(1);
     expect(result).toEqual(mockConfig);
   });
@@ -55,9 +56,7 @@ describe("createHttpHubApiClient", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       "http://192.168.1.50/api/relay/toggle?addr=3&ch=2",
-      {
-        method: "POST",
-      }
+      expect.objectContaining({ method: "POST" })
     );
     expect(text).toHaveBeenCalledTimes(1);
     expect(result).toBe("OK");
@@ -91,6 +90,19 @@ describe("createHttpHubApiClient", () => {
     await expect(client.getActual("192.168.1.50")).rejects.toBeInstanceOf(
       HubApiNetworkError
     );
+    expect(fetchMock).toHaveBeenCalledTimes(2); // 1 attempt + 1 retry on GET
+  });
+
+  it("does not retry POSTs (toggle) on network errors", async () => {
+    const fetchMock = jest.fn().mockRejectedValue(new Error("offline"));
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const client = createHttpHubApiClient();
+
+    await expect(client.toggleRelay("192.168.1.50", 1, 0)).rejects.toBeInstanceOf(
+      HubApiNetworkError
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("raises a network error for non-toggle non-OK responses", async () => {

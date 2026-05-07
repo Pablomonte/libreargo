@@ -1,4 +1,6 @@
 import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { Crop } from "../types";
 
 interface CropState {
@@ -25,33 +27,40 @@ export function createCrop(data: Omit<Crop, "id" | "harvestDate">): Crop {
   };
 }
 
-export const useCropStore = create<CropState & CropActions>((set) => ({
-  crops: [],
+export const useCropStore = create<CropState & CropActions>()(
+  persist(
+    (set) => ({
+      crops: [],
 
-  addCrop: (crop) =>
-    set((state) => ({ crops: [...state.crops, crop] })),
+      addCrop: (crop) =>
+        set((state) => ({ crops: [...state.crops, crop] })),
 
-  updateCrop: (id, data) =>
-    set((state) => ({
-      crops: state.crops.map((c) => {
-        if (c.id !== id) return c;
-        const updated = { ...c, ...data };
-        // Recalcular harvestDate si cambiaron startDate o period
-        if (data.startDate || data.period) {
-          return {
-            ...updated,
-            harvestDate: calculateHarvestDate(
-              updated.startDate,
-              updated.period
-            ),
-          };
-        }
-        return updated;
-      }),
-    })),
+      updateCrop: (id, data) =>
+        set((state) => ({
+          crops: state.crops.map((c) => {
+            if (c.id !== id) return c;
+            const updated = { ...c, ...data };
+            if (data.startDate || data.period) {
+              return {
+                ...updated,
+                harvestDate: calculateHarvestDate(
+                  updated.startDate,
+                  updated.period
+                ),
+              };
+            }
+            return updated;
+          }),
+        })),
 
-  deleteCrop: (id) =>
-    set((state) => ({
-      crops: state.crops.filter((c) => c.id !== id),
-    })),
-}));
+      deleteCrop: (id) =>
+        set((state) => ({
+          crops: state.crops.filter((c) => c.id !== id),
+        })),
+    }),
+    {
+      name: "libreagro-crops",
+      storage: createJSONStorage(() => AsyncStorage),
+    }
+  )
+);

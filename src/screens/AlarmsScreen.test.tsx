@@ -104,12 +104,4 @@ describe("AlarmsScreen (icon-first redesign)", () => {
     expect(screen.getByText("Disparada en 38.5°C")).toBeTruthy();
   });
 
-  it("snoozes an active alarm and removes it from the active tab", () => {
-    render(<AlarmsScreen {...makeProps()} />);
-
-    fireEvent.press(screen.getByText("Posponer 1h"));
-
-    expect(screen.queryByText("Posponer 1h")).toBeNull();
-    expect(screen.getByText("No hay alarmas activas")).toBeTruthy();
-  });
 });

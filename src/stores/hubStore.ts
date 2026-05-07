@@ -1,4 +1,6 @@
 import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { Hub, ConnectionMode } from "../types";
 
 interface HubState {
@@ -15,35 +17,46 @@ interface HubActions {
   readonly updateHubStatus: (hash: string, status: Hub["status"]) => void;
 }
 
-export const useHubStore = create<HubState & HubActions>((set) => ({
-  hubs: [],
-  connectionMode: "directo",
-  selectedHubHash: null,
+export const useHubStore = create<HubState & HubActions>()(
+  persist(
+    (set) => ({
+      hubs: [],
+      connectionMode: "directo",
+      selectedHubHash: null,
 
-  setConnectionMode: (mode) =>
-    set({ connectionMode: mode }),
+      setConnectionMode: (mode) => set({ connectionMode: mode }),
 
-  selectHub: (hash) =>
-    set({ selectedHubHash: hash }),
+      selectHub: (hash) => set({ selectedHubHash: hash }),
 
-  addHub: (hub) =>
-    set((state) => ({
-      hubs: state.hubs.some((h) => h.hash === hub.hash)
-        ? state.hubs
-        : [...state.hubs, hub],
-    })),
+      addHub: (hub) =>
+        set((state) => ({
+          hubs: state.hubs.some((h) => h.hash === hub.hash)
+            ? state.hubs
+            : [...state.hubs, hub],
+        })),
 
-  removeHub: (hash) =>
-    set((state) => ({
-      hubs: state.hubs.filter((h) => h.hash !== hash),
-      selectedHubHash:
-        state.selectedHubHash === hash ? null : state.selectedHubHash,
-    })),
+      removeHub: (hash) =>
+        set((state) => ({
+          hubs: state.hubs.filter((h) => h.hash !== hash),
+          selectedHubHash:
+            state.selectedHubHash === hash ? null : state.selectedHubHash,
+        })),
 
-  updateHubStatus: (hash, status) =>
-    set((state) => ({
-      hubs: state.hubs.map((h) =>
-        h.hash === hash ? { ...h, status } : h
-      ),
-    })),
-}));
+      updateHubStatus: (hash, status) =>
+        set((state) => ({
+          hubs: state.hubs.map((h) =>
+            h.hash === hash ? { ...h, status } : h
+          ),
+        })),
+    }),
+    {
+      name: "libreagro-hubs",
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({
+        hubs: state.hubs,
+        connectionMode: state.connectionMode,
+        selectedHubHash: state.selectedHubHash,
+      }),
+    }
+  )
+);

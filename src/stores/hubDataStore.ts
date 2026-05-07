@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { HubConfig, SensorData, RelayState, Alarm, Device } from "../types";
 import { getConfig, getActual, getRelays, getAlarms } from "../services/hubDataService";
 import { buildHubSensorDevices } from "../features/sensors/buildHubSensorDevices";
+import { HubApiError } from "../services/hubApi/errors";
 
 interface HubDataState {
   readonly config: HubConfig | null;
@@ -15,6 +16,7 @@ interface HubDataState {
 
 interface HubDataActions {
   readonly loadHubData: (hubIp: string) => Promise<void>;
+  readonly refreshActual: (hubIp: string) => Promise<void>;
   readonly clearData: () => void;
 }
 
@@ -57,8 +59,23 @@ export const useHubDataStore = create<HubDataState & HubDataActions>(
         ]);
         const devices = buildDevices(config, relays);
         set({ config, actual, relays, alarms, devices, loading: false });
+      } catch (e) {
+        const message =
+          e instanceof HubApiError
+            ? e.message
+            : "No se pudieron cargar los datos del hub";
+        set({ error: message, loading: false });
+      }
+    },
+
+    refreshActual: async (hubIp: string) => {
+      // Silent refresh: do not toggle loading or clear current values on
+      // transient errors so the UI stays smooth between polls.
+      try {
+        const actual = await getActual(hubIp);
+        set({ actual });
       } catch {
-        set({ error: "No se pudieron cargar los datos del hub", loading: false });
+        // intentionally swallow; next poll will retry
       }
     },
 

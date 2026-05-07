@@ -57,6 +57,7 @@ export function HubHomeScreen({ navigation, route }: Props) {
     loading,
     error,
     loadHubData,
+    refreshActual,
     clearData,
   } = useHubDataStore();
   const [filter, setFilter] = useState<FilterType>(() =>
@@ -79,6 +80,14 @@ export function HubHomeScreen({ navigation, route }: Props) {
       clearData();
     };
   }, [hub, navigation, loadHubData, clearData]);
+
+  useEffect(() => {
+    if (!hub) return;
+    const interval = setInterval(() => {
+      void refreshActual(hub.ip);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [hub, refreshActual]);
 
   const availableZones = useMemo(() => {
     const zones = new Set<string>();
