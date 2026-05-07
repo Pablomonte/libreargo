@@ -66,16 +66,24 @@ export function validateHubConfig(config: unknown): HubConfig {
       ) {
         return false;
       }
-      const address = relay.config.address;
       const alias = relay.config.alias;
-      return (
-        typeof address === "number" &&
-        Number.isInteger(address) &&
-        address >= 1 &&
-        address <= 247 &&
-        typeof alias === "string" &&
-        alias.trim() !== ""
-      );
+      if (typeof alias !== "string" || alias.trim() === "") {
+        return false;
+      }
+      // Modbus 2-channel relays must declare a valid modbus slave address.
+      // Other relay types (gpio, espnow, etc.) only need a non-empty alias —
+      // their addressing is type-specific (pin, mac, ...) and validated
+      // downstream when those types are actually used.
+      if (relay.type === "relay_2ch") {
+        const address = relay.config.address;
+        return (
+          typeof address === "number" &&
+          Number.isInteger(address) &&
+          address >= 1 &&
+          address <= 247
+        );
+      }
+      return true;
     })
   ) {
     throw new InvalidHubConfigError("El hub respondió con datos inválidos");

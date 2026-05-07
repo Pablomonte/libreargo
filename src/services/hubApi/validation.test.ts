@@ -122,4 +122,49 @@ describe("validateHubConfig", () => {
       })
     ).toThrow(InvalidHubConfigError);
   });
+
+  it("accepts gpio-style relays that do not carry a modbus address", () => {
+    expect(() =>
+      validateHubConfig({
+        ...mockConfig,
+        relays: [
+          {
+            type: "gpio",
+            enabled: true,
+            config: { pin: 2, alias: "Relé GPIO", active_low: false },
+          },
+        ],
+      })
+    ).not.toThrow();
+  });
+
+  it("still rejects modbus relay_2ch entries that omit the address", () => {
+    expect(() =>
+      validateHubConfig({
+        ...mockConfig,
+        relays: [
+          {
+            type: "relay_2ch",
+            enabled: true,
+            config: { alias: "Sin address" },
+          },
+        ],
+      })
+    ).toThrow(InvalidHubConfigError);
+  });
+
+  it("rejects gpio relays whose alias is empty", () => {
+    expect(() =>
+      validateHubConfig({
+        ...mockConfig,
+        relays: [
+          {
+            type: "gpio",
+            enabled: true,
+            config: { pin: 2, alias: "" },
+          },
+        ],
+      })
+    ).toThrow(InvalidHubConfigError);
+  });
 });
