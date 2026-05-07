@@ -1,4 +1,10 @@
-import type { HubConfig, RelayState, SensorData } from "../../types";
+import type {
+  HubConfig,
+  RelayState,
+  SensorData,
+  SensorReadingGroup,
+  SensorReadingItem,
+} from "../../types";
 import {
   HubApiInvalidResponseError,
 } from "./errors";
@@ -34,38 +40,154 @@ export function mapConfigurationResponse(payload: unknown): HubConfig {
   }
 }
 
+const KEY_VAR_TEMPERATURE = 0;
+const KEY_VAR_HUMIDITY = 1;
+const KEY_VAR_CO2 = 2;
+const KEY_VAR_PRESSURE = 4;
+const MISSING_VALUE = "--";
+
 export function mapSensorDataResponse(payload: unknown): SensorData {
   if (!isPlainObject(payload)) {
     throw new HubApiInvalidResponseError();
   }
 
   const data = payload as Record<string, unknown>;
-  const errors = data.errors;
-  if (
-    typeof data.a_temperature !== "string" ||
-    typeof data.a_humidity !== "string" ||
-    typeof data.a_co2 !== "string" ||
-    typeof data.a_pressure !== "string" ||
-    !isWifiStatus(data.wifi_status) ||
-    !isErrorCollection(errors)
-  ) {
+  if (!isWifiStatus(data.wifi_status)) {
     throw new HubApiInvalidResponseError();
   }
 
-  return {
-    a_temperature: data.a_temperature,
-    a_humidity: data.a_humidity,
-    a_co2: data.a_co2,
-    a_pressure: data.a_pressure,
+  const hasLegacyFields =
+    typeof data.a_temperature === "string" &&
+    typeof data.a_humidity === "string" &&
+    typeof data.a_co2 === "string" &&
+    typeof data.a_pressure === "string" &&
+    isErrorCollection(data.errors);
+
+  const sensorGroups = parseSensorGroups(data.sensors);
+
+  if (!hasLegacyFields && sensorGroups === undefined) {
+    throw new HubApiInvalidResponseError();
+  }
+
+  const a_temperature = hasLegacyFields
+    ? (data.a_temperature as string)
+    : pickReading(sensorGroups, KEY_VAR_TEMPERATURE, "temp");
+  const a_humidity = hasLegacyFields
+    ? (data.a_humidity as string)
+    : pickReading(sensorGroups, KEY_VAR_HUMIDITY, "humedad");
+  const a_co2 = hasLegacyFields
+    ? (data.a_co2 as string)
+    : pickReading(sensorGroups, KEY_VAR_CO2, "co2");
+  const a_pressure = hasLegacyFields
+    ? (data.a_pressure as string)
+    : pickReading(sensorGroups, KEY_VAR_PRESSURE, "presi");
+
+  const errors: SensorData["errors"] = hasLegacyFields
+    ? {
+        temperature: [...(data.errors as SensorData["errors"]).temperature],
+        humidity: [...(data.errors as SensorData["errors"]).humidity],
+        sensors: [...(data.errors as SensorData["errors"]).sensors],
+        wifi: [...(data.errors as SensorData["errors"]).wifi],
+        rotation: [...(data.errors as SensorData["errors"]).rotation],
+      }
+    : {
+        temperature: [],
+        humidity: [],
+        sensors: (sensorGroups ?? [])
+          .filter((g) => g.error || !g.active)
+          .map((g) => g.id ?? g.type),
+        wifi:
+          data.wifi_status === "disconnected" ? (["wifi"] as readonly string[]) : [],
+        rotation: [],
+      };
+
+  const result: SensorData = {
+    a_temperature,
+    a_humidity,
+    a_co2,
+    a_pressure,
     wifi_status: data.wifi_status,
-    errors: {
-      temperature: [...errors.temperature],
-      humidity: [...errors.humidity],
-      sensors: [...errors.sensors],
-      wifi: [...errors.wifi],
-      rotation: [...errors.rotation],
-    },
+    errors,
   };
+
+  return sensorGroups ? { ...result, sensors: sensorGroups } : result;
+}
+
+function parseSensorGroups(value: unknown): readonly SensorReadingGroup[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const groups: SensorReadingGroup[] = [];
+  for (const entry of value) {
+    if (!isPlainObject(entry)) {
+      continue;
+    }
+    const obj = entry as Record<string, unknown>;
+    if (typeof obj.type !== "string") {
+      continue;
+    }
+    const readings = parseReadings(obj.readings);
+    groups.push({
+      type: obj.type,
+      id: typeof obj.id === "string" ? obj.id : undefined,
+      active: obj.active === true,
+      error: obj.error === true,
+      readings,
+    });
+  }
+  return groups;
+}
+
+function parseReadings(value: unknown): readonly SensorReadingItem[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const out: SensorReadingItem[] = [];
+  for (const entry of value) {
+    if (!isPlainObject(entry)) {
+      continue;
+    }
+    const obj = entry as Record<string, unknown>;
+    if (typeof obj.label !== "string" || typeof obj.unit !== "string") {
+      continue;
+    }
+    const value = typeof obj.value === "string" ? obj.value : String(obj.value ?? "");
+    out.push({
+      label: obj.label,
+      value,
+      unit: obj.unit,
+      status: typeof obj.status === "string" ? obj.status : undefined,
+      id: typeof obj.id === "string" ? obj.id : undefined,
+      key_var: typeof obj.key_var === "number" ? obj.key_var : undefined,
+    });
+  }
+  return out;
+}
+
+function pickReading(
+  groups: readonly SensorReadingGroup[] | undefined,
+  keyVar: number,
+  labelHint: string
+): string {
+  if (!groups) {
+    return MISSING_VALUE;
+  }
+  for (const g of groups) {
+    for (const r of g.readings) {
+      if (r.key_var === keyVar && r.value !== "") {
+        return r.value;
+      }
+    }
+  }
+  for (const g of groups) {
+    for (const r of g.readings) {
+      if (r.label.toLowerCase().includes(labelHint) && r.value !== "") {
+        return r.value;
+      }
+    }
+  }
+  return MISSING_VALUE;
 }
 
 export function mapRelayListResponse(payload: unknown): readonly RelayState[] {

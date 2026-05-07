@@ -3,6 +3,7 @@ import {
   Modal,
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
@@ -18,7 +19,9 @@ import {
 import { BigButton, IconBadge } from "./ui";
 import { IcoAlerta, IcoCheck, IcoWifi, IcoX } from "./icons";
 
-type AddHubStep = "confirm-switch" | "searching" | "error";
+type AddHubStep = "confirm-switch" | "ip-input" | "searching" | "error";
+
+const IPV4_REGEX = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
 
 interface AddHubModalProps {
   readonly visible: boolean;
@@ -29,7 +32,7 @@ interface AddHubModalProps {
 }
 
 function initialStep(mode: ConnectionMode): AddHubStep {
-  return mode === "online" ? "confirm-switch" : "searching";
+  return mode === "online" ? "confirm-switch" : "ip-input";
 }
 
 export function AddHubModal({
@@ -42,11 +45,13 @@ export function AddHubModal({
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState<AddHubStep>(() => initialStep(initialMode));
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const [hubIp, setHubIp] = useState<string>(DIRECT_MODE_IP);
 
   useEffect(() => {
     if (visible) {
       setStep(initialStep(initialMode));
       setErrorMessage("");
+      setHubIp(DIRECT_MODE_IP);
     }
   }, [visible, initialMode]);
 
@@ -59,7 +64,7 @@ export function AddHubModal({
 
     void (async () => {
       try {
-        const rawConfig = await getConfig(DIRECT_MODE_IP);
+        const rawConfig = await getConfig(hubIp);
         const config = validateHubConfig(rawConfig);
 
         if (cancelled) {
@@ -69,7 +74,7 @@ export function AddHubModal({
         const hub: Hub = {
           hash: config.hash,
           name: config.incubator_name,
-          ip: DIRECT_MODE_IP,
+          ip: hubIp,
           status: "conectado",
           addedAt: new Date().toISOString(),
         };
@@ -93,16 +98,26 @@ export function AddHubModal({
     return () => {
       cancelled = true;
     };
-  }, [visible, step, onAdded]);
+  }, [visible, step, hubIp, onAdded]);
 
   const handleConfirmSwitch = () => {
     onSwitchToDirecto();
+    setStep("ip-input");
+  };
+
+  const handleStartSearch = () => {
+    if (!IPV4_REGEX.test(hubIp.trim())) {
+      setErrorMessage("La IP no tiene un formato válido (ej. 192.168.16.10).");
+      setStep("error");
+      return;
+    }
+    setHubIp(hubIp.trim());
     setStep("searching");
   };
 
   const handleRetry = () => {
     setErrorMessage("");
-    setStep("searching");
+    setStep("ip-input");
   };
 
   return (
@@ -158,6 +173,46 @@ export function AddHubModal({
                 </View>
                 <View style={styles.actionSlot}>
                   <BigButton label="Continuar" onPress={handleConfirmSwitch} />
+                </View>
+              </View>
+            </>
+          )}
+
+          {step === "ip-input" && (
+            <>
+              <View style={styles.heroIcon}>
+                <IconBadge bg={COLORS.primarySoft} size={96}>
+                  <IcoWifi size={56} color={COLORS.primary} />
+                </IconBadge>
+              </View>
+              <Text style={styles.title}>IP del hub</Text>
+              <Text style={styles.body}>
+                Ingresá la IP del hub al que querés conectarte. Por defecto usamos
+                la del modo AP del firmware.
+              </Text>
+              <TextInput
+                accessibilityLabel="IP del hub"
+                value={hubIp}
+                onChangeText={setHubIp}
+                placeholder="192.168.16.10"
+                placeholderTextColor={COLORS.textSecondary}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="numbers-and-punctuation"
+                inputMode="numeric"
+                style={styles.ipInput}
+              />
+              <View style={styles.actions}>
+                <View style={styles.actionSlot}>
+                  <BigButton
+                    label="Cancelar"
+                    onPress={onCancel}
+                    variant="outline"
+                    color={COLORS.textSecondary}
+                  />
+                </View>
+                <View style={styles.actionSlot}>
+                  <BigButton label="Buscar" onPress={handleStartSearch} />
                 </View>
               </View>
             </>
@@ -263,6 +318,18 @@ const styles = StyleSheet.create({
   },
   loader: {
     marginVertical: 8,
+  },
+  ipInput: {
+    width: "100%",
+    borderWidth: 1,
+    borderColor: COLORS.textSecondary,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 18,
+    fontVariant: ["tabular-nums"],
+    color: COLORS.text,
+    textAlign: "center",
   },
   actions: {
     flexDirection: "row",

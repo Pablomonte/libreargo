@@ -24,6 +24,23 @@ export interface SensorConfig {
   readonly zones?: readonly string[];
 }
 
+export interface SensorReadingItem {
+  readonly label: string;
+  readonly value: string;
+  readonly unit: string;
+  readonly status?: string;
+  readonly id?: string;
+  readonly key_var?: number;
+}
+
+export interface SensorReadingGroup {
+  readonly type: string;
+  readonly id?: string;
+  readonly active: boolean;
+  readonly error: boolean;
+  readonly readings: readonly SensorReadingItem[];
+}
+
 export interface SensorData {
   readonly a_temperature: string;
   readonly a_humidity: string;
@@ -37,6 +54,7 @@ export interface SensorData {
     wifi: readonly string[];
     rotation: readonly string[];
   }>;
+  readonly sensors?: readonly SensorReadingGroup[];
 }
 
 export interface SensorReading {
